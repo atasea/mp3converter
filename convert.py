@@ -18,10 +18,10 @@ def convert():
             except:
                 print("You can only type numbers for bitrate\n")
                 continue
-            
+                
         if not bitrate:
             try:
-                process = subprocess.run(["ffmpeg","-i",inputFile, outputFile],)
+                process = subprocess.run(["ffmpeg","-i",inputFile, outputFile], check=True,stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
                 return
             except subprocess.CalledProcessError:
                 print("\nYou sure you typed your input or output file name right? Try again.\n")

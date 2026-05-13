@@ -1,2 +1,0 @@
-1.add a do while loop for error in file names
-2. if ffmpeg is not installed, handle that.
