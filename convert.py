@@ -21,15 +21,19 @@ def convert():
                 
         if not bitrate:
             try:
-                process = subprocess.run(["ffmpeg","-i",inputFile, outputFile], check=True,stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+                process = subprocess.run(["ffmpeg","-i","assets/" + inputFile, outputFile], check=True,stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
                 return
             except subprocess.CalledProcessError:
                 print("\nYou sure you typed your input or output file name right? Try again.\n")
+            except FileNotFoundError:
+                print("\nMake sure you have downloaded ffmpeg to your device and added it to path.\n")
+
               
         else:    
             try:
-               process = subprocess.run(["ffmpeg","-i",inputFile, "-b:a", bitrate +"k", outputFile], check=True,stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+               process = subprocess.run(["ffmpeg","-i","assets/" + inputFile, "-b:a", bitrate +"k", outputFile], check=True,stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
                return 
             except subprocess.CalledProcessError:
                 print("\nYou sure you typed your input or output file name right? Try again.\n")
-              
+            except FileNotFoundError:
+              print("\nMake sure you have downloaded ffmpeg to your device and added it to path.\n")
