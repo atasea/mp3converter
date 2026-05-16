@@ -1,7 +1,6 @@
 import glob
 import subprocess
 
-
 def convert():
     while True:
         #directory or single file choice
