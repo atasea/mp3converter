@@ -59,12 +59,17 @@ clickedChannel.set("Set Channel (1 for Mono 2 for Stereo): ")
 channelDropdown = OptionMenu(topMenu, clickedChannel, "1", "2")
 channelDropdown.grid(column=4,row=0)
 
+#bitrate mode
+bitrateMode = StringVar()
+bitrateMode.set("Set Bitrate Mode: ")
+bitrateModeDropdown = OptionMenu(topMenu,bitrateMode,"CBR","VBR")
+bitrateModeDropdown.grid(column=5,row=0)
+
 #file dialog
 chosenFilePath = ""
 def uploadFile():
     file_path=filedialog.askopenfilename()
     if file_path:
-        print(f"Selected file: {file_path}")
         global chosenFilePath
         chosenFilePath = file_path
         fileLabel.config(text=chosenFilePath)
@@ -91,6 +96,28 @@ def alertFormat():
     
     popupText=ttk.Label(popFormat,text="Please Choose a File Format.")
     popupText.place(relx=0.5,rely=0.5,anchor="center")
+
+def alertBitrate():
+    global popBitrate
+    global windowHeight
+    global windowWidth
+    
+    popBitrate = Toplevel(root)
+    popBitrate.title("Bitrate Error")
+    popBitrateWidth= 400
+    popBitrateHeight = 100
+    popBitrate.geometry(f"{popBitrateWidth}x{popBitrateHeight}")
+    
+    #position popup
+    root_x=root.winfo_rootx()
+    root_y=root.winfo_rooty()        
+    popup_x=root_x + windowWidth//2 - popBitrateWidth//2
+    popup_y = root_y + windowHeight//2 - popBitrateHeight//2
+    popBitrate.geometry(f"+{popup_x}+{popup_y}")
+    
+    popupText=ttk.Label(popBitrate,text="You can not set a bitrate and set bitrate mode to VBR at the same time. \n\n      Either do not set a bitrate or change the bitrate mode to CBR. ")
+    popupText.place(relx=0.5,rely=0.5,anchor="center")
+    
 #convert function
 def convert():
     
@@ -98,17 +125,17 @@ def convert():
     global clickedChannel
     global clickedSamplerate
     global clickedFormat
+    global bitrateMode
     
     clickedChannelStr=clickedChannel.get()
     enteredBitrateStr=enteredBitrate.get()
     clickedSamplerateStr=clickedSamplerate.get()
     clickedFormatStr=clickedFormat.get()
+    bitrateModeStr = bitrateMode.get()
     
     if clickedFormatStr not in ["mp3","wav","flac"]:
-        #print(clickedFormatStr)
         alertFormat()
         return
-    
     
     #is channel typed?
     isChannel=False
@@ -128,35 +155,45 @@ def convert():
     if clickedSamplerateStr in ["44100","48000","32000","22050","24000","16000","11025","12000","8000"]:
         isSamplerate = True
     
+    isBitrateMode=False
+    if bitrateModeStr=="CBR":
+        bitrateModeNumber = "1"
+        isBitrateMode=True
+        
+    elif bitrateModeStr=="VBR":
+        bitrateModeNumber = "2"
+        isBitrateMode=True
+
+    if bitrateModeStr=="VBR" and isBitrate:
+        alertBitrate()
+        return
     
-    
-    properties = {"-b:a":isBitrate, enteredBitrate.get()+"k":isBitrate,"-ac":isChannel,clickedChannel.get():isChannel, "-ar":isSamplerate,clickedSamplerate.get():isSamplerate}
+    properties = [("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
     
     command = ["ffmpeg","-i",chosenFilePath]
     
-    for key,value in properties.items():
+    for key,value in properties:
         if value == True:
             command.append(key)
-    
+            
     #get all file paths
     path = f"out/*.{clickedFormatStr}"
-    print(f"path: {path}")
     files=glob.glob(path)
     
     #check if the file path has been generated before
     maxNumber = 0
     for file in files:
         number = file[file.find("_")+1:file.index(".")]
-        print(number)
         if int(number)> int(maxNumber):
             maxNumber=number
     maxNumberInt= int(maxNumber)
+    
     #finalize command
     command.append(f"out/o_{maxNumberInt+1}.{clickedFormatStr}")
     print(command)
     
     try:
-        process = subprocess.run(command)
+        process = subprocess.run(command,check=True,stderr=subprocess.DEVNULL)
         return
     except:
         print("Something went wrong.")
