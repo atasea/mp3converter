@@ -3,6 +3,8 @@ import subprocess
 from tkinter import filedialog
 from tkinter import ttk
 from tkinter import *
+from ffmpeg_normalize import FFmpegNormalize
+
 
 windowWidth=1000
 windowHeight=750
@@ -65,6 +67,15 @@ bitrateMode.set("Set Bitrate Mode: ")
 bitrateModeDropdown = OptionMenu(topMenu,bitrateMode,"CBR","VBR")
 bitrateModeDropdown.grid(column=5,row=0)
 
+#loudness label
+loudnessLabel = ttk.Label(topMenu,text="Set Loudness (dB): ")
+loudnessLabel.grid(column=6,row=0)
+
+#loudness normalization
+loudness= StringVar() 
+loudnessDropdown = ttk.Entry(topMenu,textvariable=loudness,width=5)
+loudnessDropdown.grid(column=7,row=0)
+
 #file dialog
 chosenFilePath = ""
 def uploadFile():
@@ -74,50 +85,27 @@ def uploadFile():
         chosenFilePath = file_path
         fileLabel.config(text=chosenFilePath)
 
-#warning popup function
-def alertFormat():
-    global popFormat
+#generate error messages as popups
+def generateAlertPopup(popupTitle,popupWidth,popupHeight,popupMessage):
+    global popup
     global windowHeight
     global windowWidth
     
-    #initialize popup
-    popFormat = Toplevel(root)
-    popFormat.title("Format Error")
-    popFormatWidth= 250
-    popFormatHeight = 100
-    popFormat.geometry(f"{popFormatWidth}x{popFormatHeight}")
-    
-    #position popup
-    root_x=root.winfo_rootx()
-    root_y=root.winfo_rooty()        
-    popup_x=root_x + windowWidth//2 - popFormatWidth//2
-    popup_y = root_y + windowHeight//2 - popFormatHeight//2
-    popFormat.geometry(f"+{popup_x}+{popup_y}")
-    
-    popupText=ttk.Label(popFormat,text="Please Choose a File Format.")
-    popupText.place(relx=0.5,rely=0.5,anchor="center")
+    #geometry of popup
+    popup = Toplevel(root)
+    popup.title(popupTitle)
+    popup.geometry(f"{popupWidth}x{popupHeight}")
 
-def alertBitrate():
-    global popBitrate
-    global windowHeight
-    global windowWidth
-    
-    popBitrate = Toplevel(root)
-    popBitrate.title("Bitrate Error")
-    popBitrateWidth= 400
-    popBitrateHeight = 100
-    popBitrate.geometry(f"{popBitrateWidth}x{popBitrateHeight}")
-    
     #position popup
-    root_x=root.winfo_rootx()
-    root_y=root.winfo_rooty()        
-    popup_x=root_x + windowWidth//2 - popBitrateWidth//2
-    popup_y = root_y + windowHeight//2 - popBitrateHeight//2
-    popBitrate.geometry(f"+{popup_x}+{popup_y}")
+    root_x = root.winfo_rootx()
+    root_y = root.winfo_rooty()        
+    popup_x = root_x + windowWidth//2 - popupWidth//2
+    popup_y = root_y + windowHeight//2 - popupHeight//2
+    popup.geometry(f"+{popup_x}+{popup_y}")
     
-    popupText=ttk.Label(popBitrate,text="You can not set a bitrate and set bitrate mode to VBR at the same time. \n\n      Either do not set a bitrate or change the bitrate mode to CBR. ")
+    popupText=ttk.Label(popup,text=popupMessage)
     popupText.place(relx=0.5,rely=0.5,anchor="center")
-    
+        
 #convert function
 def convert():
     
@@ -126,15 +114,22 @@ def convert():
     global clickedSamplerate
     global clickedFormat
     global bitrateMode
+    global loudness
     
     clickedChannelStr=clickedChannel.get()
     enteredBitrateStr=enteredBitrate.get()
     clickedSamplerateStr=clickedSamplerate.get()
     clickedFormatStr=clickedFormat.get()
     bitrateModeStr = bitrateMode.get()
+    loudnessStr = loudness.get()
     
+    if not chosenFilePath:
+        generateAlertPopup("File Error",250,100,"You must choose an input file.")
+        return
+    
+    #format error handling
     if clickedFormatStr not in ["mp3","wav","flac"]:
-        alertFormat()
+        generateAlertPopup("Format Error",250,100,"Please Choose a File Format.")
         return
     
     #is channel typed?
@@ -145,16 +140,24 @@ def convert():
     #is bitrate typed
     isBitrate = False
     try: 
-        int(enteredBitrateStr)
-        isBitrate = True
-    except:
-        pass
+        if enteredBitrateStr:
+            enteredBitrateInt = int(enteredBitrateStr)
+            if enteredBitrateInt <= 0:
+                generateAlertPopup("Bitrate Error",300,100,"You can only type positive integer values for bitrate.")
+                return
+            else:
+                isBitrate = True 
+    except ValueError:
+        generateAlertPopup("Bitrate Error",300,100,"You can only type positive integer values for bitrate.")
+        return
     
     #is samplerate typed
     isSamplerate = False
     if clickedSamplerateStr in ["44100","48000","32000","22050","24000","16000","11025","12000","8000"]:
         isSamplerate = True
     
+    #if bitrate mode is chosen
+    bitrateModeNumber=""
     isBitrateMode=False
     if bitrateModeStr=="CBR":
         bitrateModeNumber = "1"
@@ -165,13 +168,29 @@ def convert():
         isBitrateMode=True
 
     if bitrateModeStr=="VBR" and isBitrate:
-        alertBitrate()
+        generateAlertPopup("Bitrate Error",400,100,"You can not set a bitrate and set bitrate mode to VBR at the same time. \n\n      Either do not set a bitrate or change the bitrate mode to CBR. ")
         return
     
+    #is loudness typed?
+    isLoudness=False
+    try:
+        if loudnessStr:
+            loudnessFloat = float(loudnessStr)
+            if loudnessFloat<-70 or -5<loudnessFloat:
+                generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5. \n \n        (Volume increases towards -5.) ")
+                return
+            else:    
+                isLoudness = True
+    except ValueError:
+        generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5. \n \n        (Volume increases towards -5.) ")
+        return
+    
+    #set up filters
     properties = [("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
     
     command = ["ffmpeg","-i",chosenFilePath]
     
+    #punch them into command
     for key,value in properties:
         if value == True:
             command.append(key)
@@ -182,22 +201,45 @@ def convert():
     
     #check if the file path has been generated before
     maxNumber = 0
-    for file in files:
-        number = file[file.find("_")+1:file.index(".")]
-        if int(number)> int(maxNumber):
-            maxNumber=number
-    maxNumberInt= int(maxNumber)
-    
-    #finalize command
-    command.append(f"out/o_{maxNumberInt+1}.{clickedFormatStr}")
-    print(command)
+    isOutEmpty=False
+    if files:
+        for file in files:
+            number = file[file.rfind("_")+1:file.rfind(".")]
+            numberInt = int(number)
+            if numberInt > maxNumber:
+                maxNumber=numberInt
+        
+        #finalize command
+        command.append(f"out/o_{maxNumber+1}.{clickedFormatStr}")
+        print(command)
+    else:
+        command.append(f"out/o_0.{clickedFormatStr}")
+        isOutEmpty = True
+        print(command)
     
     try:
-        process = subprocess.run(command,check=True,stderr=subprocess.DEVNULL)
-        return
+        process = subprocess.run(command,check=True)
     except:
         print("Something went wrong.")
-
+    
+    if isLoudness:
+        normalizer = FFmpegNormalize(normalization_type='ebu',
+        target_level=loudnessFloat,
+        audio_codec="libmp3lame",
+        print_stats=True
+        )
+        
+        try:
+            if isOutEmpty:
+                normalizer.add_media_file(chosenFilePath,f"C:/Users/USER/Desktop/mp3converter/out/o_0.{clickedFormatStr}")
+            else:
+                normalizer.add_media_file(chosenFilePath,f"C:/Users/USER/Desktop/mp3converter/out/o_{maxNumber+1}.{clickedFormatStr}")
+            normalizer.run_normalization()
+            return
+        except FFmpegNormalize.FFmpegNormalizeError:
+            print("audio codec may not be chosen correct!")
+        
+        
 #subframe of mainframe
 subframe=ttk.Frame(mainframe)
 subframe.grid(column=0,row=1)
@@ -218,6 +260,5 @@ fileLabel["relief"] = "ridge"
 #convert button
 convertButton = ttk.Button(subframe,text="Convert file(s)",command=convert)
 convertButton.grid(row=2)
-    
 
 root.mainloop()
