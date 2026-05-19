@@ -18,19 +18,18 @@ x=(root.winfo_screenwidth() // 2) - (windowWidth // 2)
 y=(root.winfo_screenheight() // 2 ) - (windowHeight // 2)
 root.geometry(f"{windowWidth}x{windowHeight}+{x}+{y}")
 
-root.columnconfigure(0, weight=1)
-root.rowconfigure(0, weight=1)
-
 #the main file upload area
 mainframe = ttk.Frame(root)
-mainframe.grid(column=0,row=0,sticky=(N,W,E,S))
+mainframe.grid(sticky=(N,W,E,S))
 
 #top menu
 topMenu = ttk.Frame(mainframe)
 topMenu.grid(sticky=(N,W,E))
 topMenu.grid_propagate(False)
-topMenu["width"]=windowWidth
-topMenu["height"]=windowHeight//10
+topMenuWidth=windowWidth
+topMenuHeight = windowHeight//10
+topMenu["width"]=topMenuWidth
+topMenu["height"]=topMenuHeight
 topMenu['relief'] = 'ridge'
 topMenu["borderwidth"] = 2
 
@@ -293,23 +292,30 @@ def convert():
         
 #subframe of mainframe
 subframe=ttk.Frame(mainframe)
-subframe.grid(column=0,row=1)
+subframe.grid(sticky=(W,E,S))
+subframe["width"]=windowWidth-topMenuWidth
+subframe["height"]=windowHeight-topMenuHeight
+subframe.grid_propagate(False)
 
 #submit file button
 uploadFileButton = ttk.Button(subframe,text="Upload File",command=uploadFile)
-uploadFileButton.grid(row=0)
+uploadFileButton.grid(column=0,row=0)
+
+#volume label
+volumeLabel= ttk.Label(subframe,text="Volume: ")
+volumeLabel.grid(column=0,row=1,sticky=(W))
 
 #the selected file placeholder
 fileLabelIndicator = ttk.Label(subframe,text="File Path: ")
-fileLabelIndicator.grid(column=0,row=1)
+fileLabelIndicator.grid(column=0,row=2)
 
 #the selected file path label
 fileLabel = ttk.Label(subframe,text=chosenFilePath,width=-10)
-fileLabel.grid(column=1,row=1)
+fileLabel.grid(column=1,row=2)
 fileLabel["relief"] = "ridge"
 
 #convert button
 convertButton = ttk.Button(subframe,text="Convert file(s)",command=convert)
-convertButton.grid(row=2)
+convertButton.grid(column=0,row=3)
 
 root.mainloop()
