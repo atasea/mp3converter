@@ -34,14 +34,10 @@ topMenu["height"]=windowHeight//10
 topMenu['relief'] = 'ridge'
 topMenu["borderwidth"] = 2
 
-isFirstClickOnFormat=True
-def refreshMenu(var,index,m):
-    print("refreshmenu is triggered")
-    global isFirstClickOnFormat
-    if not isFirstClickOnFormat:
-        codecOptions.clear()
-    else:
-        isFirstClickOnFormat=False
+
+def refreshMenu(var,index,m):    
+    codecOptions.clear()
+    
     for opt in codecFormat[clickedFormat.get()]:
         codecOptions.append(opt)
         
@@ -55,29 +51,20 @@ clickedFormat.set("Choose Output Format:")
 clickedFormat.trace_add("write",refreshMenu)
 formatDropdown = OptionMenu(topMenu,clickedFormat,"mp3","wav","flac","aac","ogg","opus","aiff","mp2")
 formatDropdown.grid(column=0,row=0,sticky=(W))
-
-def checkFirstClickOnFormat():
-    print("checkFirstClickOnFormat triggered")
-    global isFirstClickOnFormat
-    if isFirstClickOnFormat:
-        generateAlertPopup("Codec Error",250,100,"Choose output format first.")
-        codecChoiceDropdown["menu"].unpost()
-        return
-    else:
-        codecChoiceDropdown['menu'].unbind("<ButtonPress>", handler_id)
         
 #codec choices
-codecOptions = []
+codecOptions = ["libmp3lame","pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le", "pcm_u8","flac","aac", "libfdk_aac","libvorbis", "libopus","pcm_s16be", "pcm_s24be", "pcm_s32be","mp2", "libtwolame"]
 codecChoice = StringVar()
 codecChoice.set("Set a Codec: ")
-codecChoiceDropdown = OptionMenu(topMenu,codecChoice,"")
+codecChoiceDropdown = OptionMenu(topMenu,codecChoice,*codecOptions)
 codecChoiceDropdown.grid(column=0,row=1)
-handler_id = codecChoiceDropdown['menu'].bind("<ButtonPress>", checkFirstClickOnFormat)
+
 
 
 codecFormat= {"mp3":["libmp3lame"],
               "wav":["pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le", "pcm_u8"],
-              "flac":["flac"],"aac":["aac", "libfdk_aac"],
+              "flac":["flac"],
+              "aac":["aac", "libfdk_aac"],
               "ogg":["libvorbis", "libopus"],
               "opus":["libopus"],
               "aiff":["pcm_s16be", "pcm_s24be", "pcm_s32be"],
@@ -129,7 +116,7 @@ def uploadFile():
         fileLabel.config(text=chosenFilePath)
 
 #generate error messages as popups
-def generateAlertPopup(popupTitle,popupWidth,popupHeight,popupMessage):
+def generateAlertPopup(popupTitle,popupWidth,popupHeight,popupMessage_1,popupMessage_2=""):
     global popup
     global windowHeight
     global windowWidth
@@ -146,9 +133,11 @@ def generateAlertPopup(popupTitle,popupWidth,popupHeight,popupMessage):
     popup_y = root_y + windowHeight//2 - popupHeight//2
     popup.geometry(f"+{popup_x}+{popup_y}")
     
-    popupText=ttk.Label(popup,text=popupMessage)
-    popupText.place(relx=0.5,rely=0.5,anchor="center")
-        
+    popupText_1=ttk.Label(popup,text=popupMessage_1)
+    popupText_1.place(relx=0.5,rely=0.4,anchor="center")
+    popupText_2=ttk.Label(popup,text=popupMessage_2)
+    popupText_2.place(relx=0.5,rely=0.6,anchor="center")
+    
 #convert function
 def convert():
     
@@ -174,7 +163,7 @@ def convert():
         return
     
     #format error handling
-    if clickedFormatStr not in ["mp3","wav","flac"]:
+    if clickedFormatStr not in codecFormat:
         generateAlertPopup("Format Error",250,100,"Please Choose a File Format.")
         return
     
@@ -214,7 +203,7 @@ def convert():
         isBitrateMode=True
 
     if bitrateModeStr=="VBR" and isBitrate:
-        generateAlertPopup("Bitrate Error",400,100,"You can not set a bitrate and set bitrate mode to VBR at the same time. \n\n      Either do not set a bitrate or change the bitrate mode to CBR. ")
+        generateAlertPopup("Bitrate Error",400,100,"You can not set a bitrate and set bitrate mode to VBR at the same time.","Either do not set a bitrate or change the bitrate mode to CBR.")
         return
     
     #is loudness typed?
@@ -223,22 +212,30 @@ def convert():
         if loudnessStr:
             loudnessFloat = float(loudnessStr)
             if loudnessFloat<-70 or -5<loudnessFloat:
-                generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5. \n \n        (Volume increases towards -5.) ")
+                generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5.","(Volume increases towards -5.)")
                 return
             else:    
                 isLoudness = True
     except ValueError:
-        generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5. \n \n        (Volume increases towards -5.) ")
+        generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5.","(Volume increases towards -5.)")
         return
     
     #is codec chosen
     isCodec=False
-    if not isFirstClickOnFormat:
-        pass
-        
+    if codecChoiceStr!="Set a Codec: ":
+        isCodec=True
     
+    else:
+        codecChoiceStr=codecFormat[clickedFormatStr][0]
+    
+    #error handling for codec
+    if isCodec==True:
+        if codecChoiceStr not in codecFormat[clickedFormatStr]:
+            generateAlertPopup("Codec Error",600,100,"The codec you have chosen is incompatible with the format.","You can view the supported codecs of each format if you open the codec menu after selecting a format.")
+            return
+        
     #set up filters
-    properties = [("-c:a",isCodec),("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
+    properties = [("-c:a",isCodec),(codecChoiceStr,isCodec),("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
     
     command = ["ffmpeg","-i",chosenFilePath]
     
@@ -246,6 +243,7 @@ def convert():
     for key,value in properties:
         if value == True:
             command.append(key)
+        
             
     #get all file paths
     path = f"out/*"
@@ -263,11 +261,12 @@ def convert():
         
         #finalize command
         command.append(f"out/o_{maxNumber+1}.{clickedFormatStr}")
-        print(command)
+        print(f"command is:  {command}")
+
     else:
         command.append(f"out/o_0.{clickedFormatStr}")
         isOutEmpty = True
-        print(command)
+        print(f"command is:  {command}")
     
     try:
         process = subprocess.run(command,check=True)
@@ -278,7 +277,7 @@ def convert():
         
         normalizer = FFmpegNormalize(normalization_type='ebu',
         target_level=loudnessFloat,
-        audio_codec=codecChoice,
+        audio_codec=codecChoiceStr,
         print_stats=True
         )
         
