@@ -1,9 +1,9 @@
+from ffmpeg_normalize import FFmpegNormalize
 import glob
 import subprocess
 from tkinter import filedialog
 from tkinter import ttk
 from tkinter import *
-from ffmpeg_normalize import FFmpegNormalize
 
 
 windowWidth=1000
@@ -34,11 +34,54 @@ topMenu["height"]=windowHeight//10
 topMenu['relief'] = 'ridge'
 topMenu["borderwidth"] = 2
 
+isFirstClickOnFormat=True
+def refreshMenu(var,index,m):
+    print("refreshmenu is triggered")
+    global isFirstClickOnFormat
+    if not isFirstClickOnFormat:
+        codecOptions.clear()
+    else:
+        isFirstClickOnFormat=False
+    for opt in codecFormat[clickedFormat.get()]:
+        codecOptions.append(opt)
+        
+    codecChoiceDropdown["menu"].delete(0,"end")
+    for opt in codecOptions:
+        codecChoiceDropdown["menu"].add_command(label=opt ,command=lambda v=opt:codecChoice.set(v))
+
 #format dropdown menu
 clickedFormat = StringVar()
-clickedFormat.set("Choose a Format:")
-formatDropdown = OptionMenu(topMenu,clickedFormat,"mp3","wav","flac")
-formatDropdown.grid(column=0,row=0)
+clickedFormat.set("Choose Output Format:")
+clickedFormat.trace_add("write",refreshMenu)
+formatDropdown = OptionMenu(topMenu,clickedFormat,"mp3","wav","flac","aac","ogg","opus","aiff","mp2")
+formatDropdown.grid(column=0,row=0,sticky=(W))
+
+def checkFirstClickOnFormat():
+    print("checkFirstClickOnFormat triggered")
+    global isFirstClickOnFormat
+    if isFirstClickOnFormat:
+        generateAlertPopup("Codec Error",250,100,"Choose output format first.")
+        codecChoiceDropdown["menu"].unpost()
+        return
+    else:
+        codecChoiceDropdown['menu'].unbind("<ButtonPress>", handler_id)
+        
+#codec choices
+codecOptions = []
+codecChoice = StringVar()
+codecChoice.set("Set a Codec: ")
+codecChoiceDropdown = OptionMenu(topMenu,codecChoice,"")
+codecChoiceDropdown.grid(column=0,row=1)
+handler_id = codecChoiceDropdown['menu'].bind("<ButtonPress>", checkFirstClickOnFormat)
+
+
+codecFormat= {"mp3":["libmp3lame"],
+              "wav":["pcm_s16le", "pcm_s24le", "pcm_s32le", "pcm_f32le", "pcm_u8"],
+              "flac":["flac"],"aac":["aac", "libfdk_aac"],
+              "ogg":["libvorbis", "libopus"],
+              "opus":["libopus"],
+              "aiff":["pcm_s16be", "pcm_s24be", "pcm_s32be"],
+              "mp2":["mp2", "libtwolame"]}
 
 #bitrate label
 bitrateLabel= ttk.Label(topMenu,text="Set Bitrate: ")
@@ -115,6 +158,8 @@ def convert():
     global clickedFormat
     global bitrateMode
     global loudness
+    global codecChoice
+    global isFirstClickOnFormat
     
     clickedChannelStr=clickedChannel.get()
     enteredBitrateStr=enteredBitrate.get()
@@ -122,6 +167,7 @@ def convert():
     clickedFormatStr=clickedFormat.get()
     bitrateModeStr = bitrateMode.get()
     loudnessStr = loudness.get()
+    codecChoiceStr=codecChoice.get()
     
     if not chosenFilePath:
         generateAlertPopup("File Error",250,100,"You must choose an input file.")
@@ -185,8 +231,14 @@ def convert():
         generateAlertPopup("Loudness Value Error",250,100,"Type a loudness value between -70 and -5. \n \n        (Volume increases towards -5.) ")
         return
     
+    #is codec chosen
+    isCodec=False
+    if not isFirstClickOnFormat:
+        pass
+        
+    
     #set up filters
-    properties = [("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
+    properties = [("-c:a",isCodec),("-b:a",isBitrate), (enteredBitrateStr+"k",isBitrate),("-aq",isBitrateMode),(bitrateModeNumber,isBitrateMode),("-ac",isChannel),(clickedChannelStr,isChannel), ("-ar",isSamplerate),(clickedSamplerateStr,isSamplerate)]
     
     command = ["ffmpeg","-i",chosenFilePath]
     
@@ -196,7 +248,7 @@ def convert():
             command.append(key)
             
     #get all file paths
-    path = f"out/*.{clickedFormatStr}"
+    path = f"out/*"
     files=glob.glob(path)
     
     #check if the file path has been generated before
@@ -223,9 +275,10 @@ def convert():
         print("Something went wrong.")
     
     if isLoudness:
+        
         normalizer = FFmpegNormalize(normalization_type='ebu',
         target_level=loudnessFloat,
-        audio_codec="libmp3lame",
+        audio_codec=codecChoice,
         print_stats=True
         )
         
@@ -238,7 +291,6 @@ def convert():
             return
         except FFmpegNormalize.FFmpegNormalizeError:
             print("audio codec may not be chosen correct!")
-        
         
 #subframe of mainframe
 subframe=ttk.Frame(mainframe)
