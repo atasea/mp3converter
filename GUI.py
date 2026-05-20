@@ -13,6 +13,9 @@ windowHeight=750
 root = Tk()
 root.title("File Converter")
 
+root.grid_rowconfigure(0, weight=1)
+root.grid_columnconfigure(0, weight=1)
+
 #center the window
 x=(root.winfo_screenwidth() // 2) - (windowWidth // 2)
 y=(root.winfo_screenheight() // 2 ) - (windowHeight // 2)
@@ -107,12 +110,21 @@ loudnessDropdown.grid(column=7,row=0)
 
 #file dialog
 chosenFilePath = ""
+currentBitrate=""
+currentVolume=""
+currentSampleRate=""
+currentFileSize=""
+duration=""
 def uploadFile():
     file_path=filedialog.askopenfilename()
     if file_path:
         global chosenFilePath
         chosenFilePath = file_path
         fileLabel.config(text=chosenFilePath)
+        
+        commandBitrate = ["ffprobe","-select_streams" ,"a:0" ,"-show_entries" ,"stream=bit_rate,sample_rate,duration","-of" ,"default=noprint_wrappers=1:nokey=1" ,"assets/input.mp4"]
+        process = subprocess.run(commandBitrate, capture_output=True, text=True)
+        print(f"stdout is: {process.stdout.split("\n")}")
 
 #generate error messages as popups
 def generateAlertPopup(popupTitle,popupWidth,popupHeight,popupMessage_1,popupMessage_2=""):
@@ -297,25 +309,67 @@ subframe["width"]=windowWidth-topMenuWidth
 subframe["height"]=windowHeight-topMenuHeight
 subframe.grid_propagate(False)
 
-#submit file button
-uploadFileButton = ttk.Button(subframe,text="Upload File",command=uploadFile)
-uploadFileButton.grid(column=0,row=0)
+# ---------- Info Part ----------
 
 #volume label
-volumeLabel= ttk.Label(subframe,text="Volume: ")
-volumeLabel.grid(column=0,row=1,sticky=(W))
+volumeLabelIndicator= ttk.Label(subframe,text="Current Volume: ")
+volumeLabelIndicator.grid(column=0,row=0)
+
+volumeLabel = ttk.Label(subframe,text=currentVolume,width=-7)
+volumeLabel.grid(column=1,row=0,padx=3,pady=5)
+volumeLabel["relief"] = "ridge"
+
+#current bitrate
+bitrateInfoLabelIndicator= ttk.Label(subframe,text="Current Bitrate: ")
+bitrateInfoLabelIndicator.grid(column=2,row=0,padx=3,pady=5)
+
+bitrateInfoLabel = ttk.Label(subframe,text=currentBitrate,width=-7)
+bitrateInfoLabel.grid(column=3,row=0,padx=3,pady=5)
+bitrateInfoLabel["relief"] = "ridge"
+
+#samplerate label
+sampleRateLabelIndicator = ttk.Label(subframe,text="Current Sample Rate: ")
+sampleRateLabelIndicator.grid(column=4,row=0,padx=3,pady=5)
+
+sampleRateLabel = ttk.Label(subframe,text=currentSampleRate,width=-7)
+sampleRateLabel.grid(column=5,row=0,padx=3,pady=5)
+sampleRateLabel["relief"] = "ridge"
+
+#File Size
+fileSizeLabelIndicator = ttk.Label(subframe,text="Current File Size: ")
+fileSizeLabelIndicator.grid(column=6,row=0,padx=3,pady=5)
+
+fileSizeLabel = ttk.Label(subframe,text=currentSampleRate,width=-7)
+fileSizeLabel.grid(column=7,row=0,padx=3,pady=5)
+fileSizeLabel["relief"] = "ridge"
+
+#duration
+durationLabelIndicator = ttk.Label(subframe,text="Current Duration: ")
+durationLabelIndicator.grid(column=8,row=0,padx=3,pady=5)
+
+durationLabel = ttk.Label(subframe,text=currentSampleRate,width=-7)
+durationLabel.grid(column=9,row=0,padx=3,pady=5)
+durationLabel["relief"] = "ridge"
+
+
+
+# ---------- File Handling Part ----------
 
 #the selected file placeholder
 fileLabelIndicator = ttk.Label(subframe,text="File Path: ")
-fileLabelIndicator.grid(column=0,row=2)
+fileLabelIndicator.grid(column=6,row=2)
 
 #the selected file path label
 fileLabel = ttk.Label(subframe,text=chosenFilePath,width=-10)
-fileLabel.grid(column=1,row=2)
+fileLabel.grid(column=7,row=2)
 fileLabel["relief"] = "ridge"
+
+#submit file button
+uploadFileButton = ttk.Button(subframe,text="Upload File",command=uploadFile)
+uploadFileButton.grid(column=6,row=1)
 
 #convert button
 convertButton = ttk.Button(subframe,text="Convert file(s)",command=convert)
-convertButton.grid(column=0,row=3)
+convertButton.grid(column=6,row=3)
 
 root.mainloop()
